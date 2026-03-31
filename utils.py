@@ -30,7 +30,6 @@ def save_private_key(private_key, filepath: str, password: bytes = None):
     )
     with open(filepath, "wb") as f:
         f.write(pem)
-    print(f"  [✓] Private key saved → {filepath}")
 
 
 def save_public_key(public_key, filepath: str):
@@ -40,7 +39,6 @@ def save_public_key(public_key, filepath: str):
     )
     with open(filepath, "wb") as f:
         f.write(pem)
-    print(f"  [✓] Public key saved  → {filepath}")
 
 
 def load_private_key(filepath: str, password: bytes = None):
@@ -52,6 +50,17 @@ def load_private_key(filepath: str, password: bytes = None):
 def load_public_key(filepath: str):
     with open(filepath, "rb") as f:
         return serialization.load_pem_public_key(f.read(), backend=default_backend())
+
+
+def serialize_public_key(public_key) -> bytes:
+    return public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+
+
+def deserialize_public_key(pem_bytes: bytes):
+    return serialization.load_pem_public_key(pem_bytes, backend=default_backend())
 
 
 def aes_generate_key() -> bytes:
@@ -135,7 +144,8 @@ def verify_signature(data: bytes, signature: bytes, signer_public_key) -> bool:
 def build_payload(sender: str, receiver: str,
                   iv: bytes, ciphertext: bytes,
                   encrypted_key: bytes, hash_digest: bytes,
-                  signature: bytes) -> bytes:
+                  signature: bytes,
+                  sender_public_key: bytes = None) -> bytes:
     payload = {
         "sender":        sender,
         "receiver":      receiver,
@@ -145,12 +155,14 @@ def build_payload(sender: str, receiver: str,
         "hash":          base64.b64encode(hash_digest).decode(),
         "signature":     base64.b64encode(signature).decode(),
     }
+    if sender_public_key is not None:
+        payload["sender_public_key"] = sender_public_key.decode("ascii")
     return json.dumps(payload, indent=2).encode()
 
 
 def parse_payload(raw: bytes) -> dict:
     p = json.loads(raw)
-    return {
+    result = {
         "sender":        p["sender"],
         "receiver":      p["receiver"],
         "iv":            base64.b64decode(p["iv"]),
@@ -158,4 +170,10 @@ def parse_payload(raw: bytes) -> dict:
         "encrypted_key": base64.b64decode(p["encrypted_key"]),
         "hash":          base64.b64decode(p["hash"]),
         "signature":     base64.b64decode(p["signature"]),
+        "sender_public_key": None,
     }
+    if "sender_public_key" in p:
+        result["sender_public_key"] = deserialize_public_key(
+            p["sender_public_key"].encode("ascii")
+        )
+    return result

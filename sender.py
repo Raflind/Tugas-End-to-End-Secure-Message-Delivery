@@ -9,12 +9,14 @@ from utils import (
     compute_hash,
     sign,
     build_payload,
+    serialize_public_key,
 )
 
 RECEIVER_IP   = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 RECEIVER_PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 65432
 
 ALICE_PRIVATE_KEY_PATH = "keys/alice_private.pem"
+ALICE_PUBLIC_KEY_PATH  = "keys/alice_public.pem"
 BOB_PUBLIC_KEY_PATH    = "keys/bob_public.pem"
 
 SENDER_ID   = "Alice"
@@ -46,14 +48,18 @@ signature  = sign(hash_digest, alice_priv)
 
 print(f"    {base64.b64encode(signature).decode()[:64]}...")
 
+alice_pub     = load_public_key(ALICE_PUBLIC_KEY_PATH)
+alice_pub_pem = serialize_public_key(alice_pub)
+
 payload = build_payload(
-    sender        = SENDER_ID,
-    receiver      = RECEIVER_ID,
-    iv            = iv,
-    ciphertext    = ciphertext,
-    encrypted_key = encrypted_key,
-    hash_digest   = hash_digest,
-    signature     = signature,
+    sender            = SENDER_ID,
+    receiver          = RECEIVER_ID,
+    iv                = iv,
+    ciphertext        = ciphertext,
+    encrypted_key     = encrypted_key,
+    hash_digest       = hash_digest,
+    signature         = signature,
+    sender_public_key = alice_pub_pem,
 )
 
 print(f"\nMengirim ke {RECEIVER_IP}:{RECEIVER_PORT} ...")

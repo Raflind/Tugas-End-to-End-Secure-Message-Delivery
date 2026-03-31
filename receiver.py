@@ -19,8 +19,7 @@ ALICE_PUBLIC_KEY_PATH  = "keys/alice_public.pem"
 
 print(f"Listening on {BIND_IP}:{PORT}\n")
 
-bob_priv  = load_private_key(BOB_PRIVATE_KEY_PATH)
-alice_pub = load_public_key(ALICE_PUBLIC_KEY_PATH)
+bob_priv = load_private_key(BOB_PRIVATE_KEY_PATH)
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -45,6 +44,14 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
         conn.sendall(b"ACK: Payload received by Bob")
 
 p = parse_payload(data)
+
+if p["sender_public_key"] is not None:
+    alice_pub = p["sender_public_key"]
+    print("Using sender's public key from payload.")
+else:
+    alice_pub = load_public_key(ALICE_PUBLIC_KEY_PATH)
+    print("Sender public key not in payload — loaded from disk.")
+
 print(f"Ciphertext (b64): {base64.b64encode(p['ciphertext']).decode()[:64]}...")
 aes_key = rsa_decrypt_key(p["encrypted_key"], bob_priv)
 plaintext = aes_decrypt(p["iv"], p["ciphertext"], aes_key)
